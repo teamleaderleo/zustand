@@ -61,6 +61,61 @@ describe('persist explicit rehydrate error settlement', () => {
     )
   })
 
+  it('rejects an explicit migration failure', async () => {
+    const error = new Error('migration failure')
+    const postRehydration = vi.fn()
+    const store = createStore(
+      persist(() => ({ count: 0 }), {
+        name: 'test-storage',
+        version: 2,
+        skipHydration: true,
+        storage: createJSONStorage(() => ({
+          getItem: () =>
+            JSON.stringify({ state: { count: 1 }, version: 1 }),
+          setItem: () => {},
+          removeItem: () => {},
+        })),
+        migrate: () => {
+          throw error
+        },
+        onRehydrateStorage: () => postRehydration,
+      }),
+    )
+
+    await expect(store.persist.rehydrate()).rejects.toBe(error)
+
+    expect(store.getState()).toEqual({ count: 0 })
+    expect(store.persist.hasHydrated()).toBe(false)
+    expect(postRehydration).toHaveBeenCalledWith(undefined, error)
+  })
+
+  it('rejects an explicit merge failure', async () => {
+    const error = new Error('merge failure')
+    const postRehydration = vi.fn()
+    const store = createStore(
+      persist(() => ({ count: 0 }), {
+        name: 'test-storage',
+        skipHydration: true,
+        storage: createJSONStorage(() => ({
+          getItem: () =>
+            JSON.stringify({ state: { count: 1 }, version: 0 }),
+          setItem: () => {},
+          removeItem: () => {},
+        })),
+        merge: () => {
+          throw error
+        },
+        onRehydrateStorage: () => postRehydration,
+      }),
+    )
+
+    await expect(store.persist.rehydrate()).rejects.toBe(error)
+
+    expect(store.getState()).toEqual({ count: 0 })
+    expect(store.persist.hasHydrated()).toBe(false)
+    expect(postRehydration).toHaveBeenCalledWith(undefined, error)
+  })
+
   it('continues to contain automatic hydration failures', () => {
     const postRehydration = vi.fn()
 
