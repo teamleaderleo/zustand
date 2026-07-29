@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - '.fieldwork/persist-rehydrate-error-settlement.patch'
-      - 'tests/persistRehydrateError.test.ts'
+      - '.fieldwork/persistRehydrateError.vitest.ts'
       - '.github/workflows/fieldwork-persist-rehydrate-error.yml'
   workflow_dispatch:
 
@@ -35,11 +35,14 @@ jobs:
       - name: Apply candidate source patch
         run: git apply --check .fieldwork/persist-rehydrate-error-settlement.patch && git apply .fieldwork/persist-rehydrate-error-settlement.patch
 
+      - name: Stage candidate-only regression
+        run: cp .fieldwork/persistRehydrateError.vitest.ts tests/persistRehydrateError.test.ts
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run focused regression
-        run: pnpm vitest run tests/persistRehydrateError.test.ts
+      - name: Run persist regression suites
+        run: pnpm vitest run tests/persistRehydrateError.test.ts tests/persistAsync.test.tsx tests/persistSync.test.tsx
 
-      - name: Run type and lint checks for changed test
-        run: pnpm eslint tests/persistRehydrateError.test.ts
+      - name: Lint candidate regression
+        run: pnpm eslint .fieldwork/persistRehydrateError.vitest.ts
