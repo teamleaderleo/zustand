@@ -187,7 +187,9 @@ const toThenable =
 const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
   type S = ReturnType<typeof config>
   const {
-    storage = createJSONStorage<S, void>(() => window.localStorage),
+    storage: initialStorage = createJSONStorage<S, void>(
+      () => window.localStorage,
+    ),
     partialize = (state: S) => state,
     version = 0,
     merge = (persistedState: unknown, currentState: S) => ({
@@ -198,7 +200,7 @@ const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
   } = baseOptions
   let options = {
     ...restOptions,
-    storage,
+    storage: initialStorage,
     partialize,
     version,
     merge,
