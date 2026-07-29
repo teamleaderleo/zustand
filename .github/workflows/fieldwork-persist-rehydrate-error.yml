@@ -3,8 +3,8 @@ name: Fieldwork persist rehydrate error settlement
 on:
   pull_request:
     paths:
-      - '.fieldwork/persist-rehydrate-error-settlement.patch'
-      - '.fieldwork/persistRehydrateError.vitest.ts'
+      - 'src/middleware/persist.ts'
+      - 'tests/persistRehydrateError.test.ts'
       - '.github/workflows/fieldwork-persist-rehydrate-error.yml'
   workflow_dispatch:
 
@@ -32,17 +32,11 @@ jobs:
       - name: Enable pnpm
         run: corepack enable
 
-      - name: Apply candidate source patch
-        run: git apply --check .fieldwork/persist-rehydrate-error-settlement.patch && git apply .fieldwork/persist-rehydrate-error-settlement.patch
-
-      - name: Stage candidate-only regression
-        run: cp .fieldwork/persistRehydrateError.vitest.ts tests/persistRehydrateError.test.ts
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Run persist regression suites
         run: pnpm vitest run tests/persistRehydrateError.test.ts tests/persistAsync.test.tsx tests/persistSync.test.tsx
 
-      - name: Lint candidate regression
-        run: pnpm eslint .fieldwork/persistRehydrateError.vitest.ts
+      - name: Lint changed source and regression
+        run: pnpm eslint src/middleware/persist.ts tests/persistRehydrateError.test.ts
