@@ -1,0 +1,46 @@
+name: Fieldwork persist rehydrate error settlement
+
+on:
+  pull_request:
+    paths:
+      - '.fieldwork/persist-rehydrate-error-settlement.patch'
+      - 'tests/persistRehydrateError.test.ts'
+      - '.github/workflows/fieldwork-persist-rehydrate-error.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  focused-test:
+    name: Node.js ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version:
+          - 22
+          - 24
+          - 26
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Apply candidate source patch
+        run: git apply --check .fieldwork/persist-rehydrate-error-settlement.patch && git apply .fieldwork/persist-rehydrate-error-settlement.patch
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run focused regression
+        run: pnpm vitest run tests/persistRehydrateError.test.ts
+
+      - name: Run type and lint checks for changed test
+        run: pnpm eslint tests/persistRehydrateError.test.ts
