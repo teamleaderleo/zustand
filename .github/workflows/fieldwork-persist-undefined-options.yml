@@ -3,7 +3,8 @@ name: Fieldwork persist undefined options
 on:
   pull_request:
     paths:
-      - '.fieldwork/persistUndefinedOptions.vitest.ts'
+      - 'src/middleware/persist.ts'
+      - 'tests/persistUndefinedOptions.test.ts'
       - '.github/workflows/fieldwork-persist-undefined-options.yml'
   workflow_dispatch:
 
@@ -11,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  characterize:
+  focused-test:
     name: Node.js ${{ matrix.node-version }}
     runs-on: ubuntu-latest
     strategy:
@@ -31,14 +32,11 @@ jobs:
       - name: Enable pnpm
         run: corepack enable
 
-      - name: Stage characterization test
-        run: cp .fieldwork/persistUndefinedOptions.vitest.ts tests/persistUndefinedOptions.test.ts
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run characterization and existing persist suites
+      - name: Run persist regression suites
         run: pnpm vitest run tests/persistUndefinedOptions.test.ts tests/persistAsync.test.tsx tests/persistSync.test.tsx
 
-      - name: Lint characterization
-        run: pnpm eslint .fieldwork/persistUndefinedOptions.vitest.ts
+      - name: Lint changed source and regression
+        run: pnpm eslint src/middleware/persist.ts tests/persistUndefinedOptions.test.ts
