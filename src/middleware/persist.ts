@@ -186,15 +186,22 @@ const toThenable =
 
 const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
   type S = ReturnType<typeof config>
-  let options = {
-    storage: createJSONStorage<S, void>(() => window.localStorage),
-    partialize: (state: S) => state,
-    version: 0,
-    merge: (persistedState: unknown, currentState: S) => ({
+  const {
+    storage = createJSONStorage<S, void>(() => window.localStorage),
+    partialize = (state: S) => state,
+    version = 0,
+    merge = (persistedState: unknown, currentState: S) => ({
       ...currentState,
       ...(persistedState as object),
     }),
-    ...baseOptions,
+    ...restOptions
+  } = baseOptions
+  let options = {
+    ...restOptions,
+    storage,
+    partialize,
+    version,
+    merge,
   }
 
   let hasHydrated = false
@@ -336,14 +343,24 @@ const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
 
   ;(api as StoreApi<S> & StorePersist<StoreApi<S>, S, unknown>).persist = {
     setOptions: (newOptions) => {
+      const {
+        name = options.name,
+        storage: newStorage = options.storage,
+        partialize = options.partialize,
+        version = options.version,
+        merge = options.merge,
+        ...restOptions
+      } = newOptions
       options = {
         ...options,
-        ...newOptions,
+        ...restOptions,
+        name,
+        storage: newStorage,
+        partialize,
+        version,
+        merge,
       }
-
-      if (newOptions.storage) {
-        storage = newOptions.storage
-      }
+      storage = newStorage
     },
     clearStorage: () => {
       storage?.removeItem(options.name)
