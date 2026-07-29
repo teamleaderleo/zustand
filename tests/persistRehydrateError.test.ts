@@ -31,7 +31,7 @@ describe('persist explicit rehydrate error settlement', () => {
 
     expect(store.getState()).toEqual({ count: 0 })
     expect(store.persist.hasHydrated()).toBe(false)
-    expect(onHydrate).toHaveBeenCalledOnce()
+    expect(onHydrate).toHaveBeenCalledTimes(1)
     expect(onFinishHydration).not.toHaveBeenCalled()
     expect(postRehydration).toHaveBeenCalledWith(undefined, error)
   })
@@ -119,7 +119,7 @@ describe('persist explicit rehydrate error settlement', () => {
 
     expect(store.persist.hasHydrated()).toBe(true)
     expect(store.getState()).toEqual({ count: 42 })
-    expect(onFinishHydration).toHaveBeenCalledOnce()
+    expect(onFinishHydration).toHaveBeenCalledTimes(1)
     expect(onFinishHydration).toHaveBeenCalledWith({ count: 42 })
     expect(postRehydration).toHaveBeenNthCalledWith(
       1,
