@@ -70,8 +70,7 @@ describe('persist explicit rehydrate error settlement', () => {
         version: 2,
         skipHydration: true,
         storage: createJSONStorage(() => ({
-          getItem: () =>
-            JSON.stringify({ state: { count: 1 }, version: 1 }),
+          getItem: () => JSON.stringify({ state: { count: 1 }, version: 1 }),
           setItem: () => {},
           removeItem: () => {},
         })),
@@ -97,8 +96,7 @@ describe('persist explicit rehydrate error settlement', () => {
         name: 'test-storage',
         skipHydration: true,
         storage: createJSONStorage(() => ({
-          getItem: () =>
-            JSON.stringify({ state: { count: 1 }, version: 0 }),
+          getItem: () => JSON.stringify({ state: { count: 1 }, version: 0 }),
           setItem: () => {},
           removeItem: () => {},
         })),
@@ -176,16 +174,8 @@ describe('persist explicit rehydrate error settlement', () => {
     expect(store.getState()).toEqual({ count: 42 })
     expect(onFinishHydration).toHaveBeenCalledTimes(1)
     expect(onFinishHydration).toHaveBeenCalledWith({ count: 42 })
-    expect(postRehydration).toHaveBeenNthCalledWith(
-      1,
-      undefined,
-      firstError,
-    )
-    expect(postRehydration).toHaveBeenNthCalledWith(
-      2,
-      { count: 42 },
-      undefined,
-    )
+    expect(postRehydration).toHaveBeenNthCalledWith(1, undefined, firstError)
+    expect(postRehydration).toHaveBeenNthCalledWith(2, { count: 42 }, undefined)
   })
 
   it('continues to suppress errors from superseded attempts', async () => {
