@@ -1,9 +1,7 @@
 name: Fieldwork finalize rehydrate observer tests
 
 on:
-  push:
-    branches:
-      - fieldwork/persist-rehydrate-observer-characterization
+  pull_request:
     paths:
       - '.github/workflows/fieldwork-finalize-rehydrate-observer-tests.yml'
   workflow_dispatch:
@@ -17,6 +15,7 @@ concurrency:
 
 jobs:
   finalize:
+    if: github.repository == 'teamleaderleo/zustand'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
