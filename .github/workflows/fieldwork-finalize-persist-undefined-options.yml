@@ -1,0 +1,72 @@
+name: Finalize persist undefined options
+
+on:
+  push:
+    branches:
+      - fieldwork/persist-undefined-option-overrides
+    paths:
+      - '.github/workflows/fieldwork-finalize-persist-undefined-options.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fieldwork-finalize-persist-undefined-options
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out candidate branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: fieldwork/persist-undefined-option-overrides
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply reviewed compatibility slice
+        run: |
+          python3 -m py_compile .fieldwork/apply_persist_options_review_repair.py
+          python3 .fieldwork/apply_persist_options_review_repair.py
+          pnpm prettier --write \
+            src/middleware/persist.ts \
+            tests/persistUndefinedOptions.test.ts
+          git diff --check
+
+      - name: Validate final source and tests
+        run: |
+          pnpm vitest run \
+            tests/persistUndefinedOptions.test.ts \
+            tests/persistAsync.test.tsx \
+            tests/persistSync.test.tsx
+          pnpm eslint \
+            src/middleware/persist.ts \
+            tests/persistUndefinedOptions.test.ts
+          pnpm prettier --check \
+            src/middleware/persist.ts \
+            tests/persistUndefinedOptions.test.ts
+          pnpm run test:types
+
+      - name: Publish source-only finalization
+        run: |
+          rm .fieldwork/apply_persist_options_review_repair.py
+          rm .github/workflows/fieldwork-finalize-persist-undefined-options.yml
+          git diff --check
+          git config user.name fieldwork-ci
+          git config user.email fieldwork-ci@users.noreply.github.com
+          git add src/middleware/persist.ts tests/persistUndefinedOptions.test.ts .fieldwork .github
+          git commit -m 'persist: preserve current options across undefined updates'
+          git push origin HEAD:fieldwork/persist-undefined-option-overrides
