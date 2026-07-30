@@ -5,6 +5,7 @@ import { createStore } from 'zustand/vanilla'
 const storedCount = (count: number, version = 0) =>
   JSON.stringify({ state: { count }, version })
 
+// These assertions record current ownership; they do not select the final API policy.
 describe('persist rehydrate observer settlement characterization', () => {
   it('records a throwing success callback as hydration failure before success publication', async () => {
     const callbackError = new Error('success callback failed')
