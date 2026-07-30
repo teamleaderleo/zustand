@@ -3,7 +3,6 @@ name: Fieldwork persist undefined options
 on:
   pull_request:
     paths:
-      - '.fieldwork/apply_persist_options_review_repair.py'
       - 'src/middleware/persist.ts'
       - 'tests/persistUndefinedOptions.test.ts'
       - '.github/workflows/fieldwork-persist-undefined-options.yml'
@@ -33,12 +32,10 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
-      - run: pnpm install
-      - name: Apply and format exact compatibility candidate
+      - run: pnpm install --frozen-lockfile
+      - name: Verify direct candidate formatting and diff hygiene
         run: |
-          python3 -m py_compile .fieldwork/apply_persist_options_review_repair.py
-          python3 .fieldwork/apply_persist_options_review_repair.py
-          pnpm prettier --write \
+          pnpm prettier --check \
             src/middleware/persist.ts \
             tests/persistUndefinedOptions.test.ts
           git diff --check
@@ -48,11 +45,8 @@ jobs:
             tests/persistUndefinedOptions.test.ts \
             tests/persistAsync.test.tsx \
             tests/persistSync.test.tsx
-      - name: Run static and formatting checks
+      - name: Run static checks
         run: |
           pnpm eslint \
-            src/middleware/persist.ts \
-            tests/persistUndefinedOptions.test.ts
-          pnpm prettier --check \
             src/middleware/persist.ts \
             tests/persistUndefinedOptions.test.ts
