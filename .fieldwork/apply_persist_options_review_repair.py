@@ -42,6 +42,23 @@ def main() -> None:
         "persist construction key order",
     )
 
+    replace_exact(
+        tests,
+        '''import {
+  createJSONStorage,
+  persist,
+  type PersistOptions,
+} from 'zustand/middleware'
+''',
+        '''import {
+  type PersistOptions,
+  createJSONStorage,
+  persist,
+} from 'zustand/middleware'
+''',
+        "persist test import ordering",
+    )
+
     text = tests.read_text(encoding="utf-8")
     if "preserves the historical construction option key order" in text:
         raise SystemExit("compatibility regressions already present")
