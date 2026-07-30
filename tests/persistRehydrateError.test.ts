@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createStore } from 'zustand/vanilla'
 import { createJSONStorage, persist } from 'zustand/middleware'
+import { createStore } from 'zustand/vanilla'
 
 describe('persist explicit rehydrate error settlement', () => {
   it('rejects an explicit asynchronous hydration failure', async () => {
