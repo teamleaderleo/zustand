@@ -1,0 +1,52 @@
+name: Fieldwork persist undefined options
+
+on:
+  pull_request:
+    paths:
+      - 'src/middleware/persist.ts'
+      - 'tests/persistUndefinedOptions.test.ts'
+      - '.github/workflows/fieldwork-persist-undefined-options.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  focused-test:
+    name: Node.js ${{ matrix.node-version }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version:
+          - 22
+          - 24
+          - 26
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: fieldwork/persist-undefined-option-overrides
+          persist-credentials: false
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Verify direct candidate formatting and diff hygiene
+        run: |
+          pnpm prettier --check \
+            src/middleware/persist.ts \
+            tests/persistUndefinedOptions.test.ts
+          git diff --check
+      - name: Run focused persist suites
+        run: |
+          pnpm vitest run \
+            tests/persistUndefinedOptions.test.ts \
+            tests/persistAsync.test.tsx \
+            tests/persistSync.test.tsx
+      - name: Run static checks
+        run: |
+          pnpm eslint \
+            src/middleware/persist.ts \
+            tests/persistUndefinedOptions.test.ts
