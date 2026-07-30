@@ -33,12 +33,15 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
-      - name: Apply exact compatibility candidate
+      - run: pnpm install
+      - name: Apply and format exact compatibility candidate
         run: |
           python3 -m py_compile .fieldwork/apply_persist_options_review_repair.py
           python3 .fieldwork/apply_persist_options_review_repair.py
+          pnpm prettier --write \
+            src/middleware/persist.ts \
+            tests/persistUndefinedOptions.test.ts
           git diff --check
-      - run: pnpm install
       - name: Run focused persist suites
         run: |
           pnpm vitest run \
