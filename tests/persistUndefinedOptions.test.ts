@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  type PersistOptions,
   createJSONStorage,
   persist,
-  type PersistOptions,
 } from 'zustand/middleware'
 import { createStore } from 'zustand/vanilla'
 
@@ -303,12 +303,75 @@ describe('persist explicit undefined option handling', () => {
       }),
     )
 
-    store.persist.setOptions(
-      runtimeUpdate({ onRehydrateStorage: undefined }),
-    )
+    store.persist.setOptions(runtimeUpdate({ onRehydrateStorage: undefined }))
     await store.persist.rehydrate()
 
     expect(onRehydrateStorage).not.toHaveBeenCalled()
     expect(store.getState()).toEqual({ count: 1 })
+  })
+
+  it('preserves the historical construction option key order', () => {
+    const storage = createJSONStorage(() => ({
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+    }))
+    const store = createStore(
+      persist(() => ({ count: 0 }), {
+        name: 'test-storage',
+        skipHydration: true,
+        storage,
+      }),
+    )
+
+    expect(Object.keys(store.persist.getOptions())).toEqual([
+      'storage',
+      'partialize',
+      'version',
+      'merge',
+      'name',
+      'skipHydration',
+    ])
+  })
+
+  it('preserves custom current values across undefined updates', () => {
+    const storage = createJSONStorage(() => ({
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+    }))
+    const partialize = (state: CountState) => state
+    const merge = (persistedState: unknown, currentState: CountState) => ({
+      ...currentState,
+      ...(persistedState as object),
+    })
+    const store = createStore(
+      persist(() => ({ count: 0 }), {
+        name: 'custom-storage',
+        skipHydration: true,
+        storage,
+        partialize,
+        version: 7,
+        merge,
+      }),
+    )
+
+    store.persist.setOptions(
+      runtimeUpdate({
+        name: undefined,
+        storage: undefined,
+        partialize: undefined,
+        version: undefined,
+        merge: undefined,
+      }),
+    )
+
+    expect(store.persist.getOptions()).toMatchObject({
+      name: 'custom-storage',
+      storage,
+      partialize,
+      version: 7,
+      merge,
+    })
   })
 })

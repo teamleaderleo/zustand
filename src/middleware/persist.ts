@@ -199,11 +199,11 @@ const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
     ...restOptions
   } = baseOptions
   let options = {
-    ...restOptions,
     storage: initialStorage,
     partialize,
     version,
     merge,
+    ...restOptions,
   }
 
   let hasHydrated = false
