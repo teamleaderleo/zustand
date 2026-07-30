@@ -6,7 +6,7 @@ const storedCount = (count: number, version = 0) =>
   JSON.stringify({ state: { count }, version })
 
 describe('persist explicit undefined option handling', () => {
-  it('preserves the default merge when construction supplies undefined', async () => {
+  it('keeps default merge when construction supplies undefined', async () => {
     const postRehydration = vi.fn()
     const store = createStore(
       persist(() => ({ count: 0 }), {
@@ -29,7 +29,7 @@ describe('persist explicit undefined option handling', () => {
     expect(postRehydration).toHaveBeenCalledWith({ count: 1 }, undefined)
   })
 
-  it('preserves the default partialize when construction supplies undefined', () => {
+  it('keeps default partialize when construction supplies undefined', () => {
     const setItem = vi.fn()
     const store = createStore(
       persist(() => ({ count: 0 }), {
@@ -96,7 +96,7 @@ describe('persist explicit undefined option handling', () => {
     expect(setItem).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps public and private storage aligned when undefined is supplied', async () => {
+  it('keeps storage references aligned after an undefined update', async () => {
     let storedValue = storedCount(2)
     const getItem = vi.fn(() => storedValue)
     const setItem = vi.fn((_name: string, value: string) => {
