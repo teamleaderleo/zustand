@@ -144,7 +144,7 @@ describe('persist rehydrate observer settlement characterization', () => {
         })),
         onRehydrateStorage: () => (_state, error) => {
           if (error) {
-            newerHydration = store.persist.rehydrate()
+            newerHydration = Promise.resolve(store.persist.rehydrate())
           }
         },
       }),
