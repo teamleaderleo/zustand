@@ -125,7 +125,6 @@ describe('persist rehydrate observer settlement characterization', () => {
   it('lets an error callback start a newer successful hydration while the older call rejects', async () => {
     const firstError = new Error('first read failed')
     let readCount = 0
-    let rehydrateAgain: (() => Promise<void>) | undefined
     let newerHydration: Promise<void> | undefined
     const store = createStore(
       persist(() => ({ count: 0 }), {
@@ -144,12 +143,11 @@ describe('persist rehydrate observer settlement characterization', () => {
         })),
         onRehydrateStorage: () => (_state, error) => {
           if (error) {
-            newerHydration = rehydrateAgain?.()
+            newerHydration = store.persist.rehydrate()
           }
         },
       }),
     )
-    rehydrateAgain = () => store.persist.rehydrate()
 
     await expect(store.persist.rehydrate()).rejects.toBe(firstError)
     expect(newerHydration).toBeDefined()
