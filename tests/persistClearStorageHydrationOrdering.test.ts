@@ -1,0 +1,103 @@
+import { describe, expect, it, vi } from 'vitest'
+import { persist } from 'zustand/middleware'
+import { createStore } from 'zustand/vanilla'
+
+type Deferred<T> = {
+  promise: Promise<T>
+  resolve: (value: T) => void
+}
+
+const deferred = <T>(): Deferred<T> => {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}
+
+describe('persist clear-storage hydration ordering', () => {
+  it('applies a delayed stored value after clearStorage', async () => {
+    const storedValue = deferred<{
+      state: { count: number }
+      version: number
+    } | null>()
+    const removeItem = vi.fn()
+    const store = createStore(
+      persist(
+        () => ({ count: 0 }),
+        {
+          name: 'test-storage',
+          skipHydration: true,
+          storage: {
+            getItem: () => storedValue.promise,
+            removeItem,
+            setItem: () => {},
+          },
+        },
+      ),
+    )
+
+    const hydration = store.persist.rehydrate()
+    store.persist.clearStorage()
+    storedValue.resolve({ state: { count: 1 }, version: 0 })
+    await hydration
+
+    expect(removeItem).toHaveBeenCalledTimes(1)
+    expect(store.getState().count).toBe(1)
+  })
+
+  it('applies a delayed migration after clearStorage', async () => {
+    const migratedValue = deferred<{ count: number }>()
+    const migrate = vi.fn(() => migratedValue.promise)
+    const removeItem = vi.fn()
+    const store = createStore(
+      persist(
+        () => ({ count: 0 }),
+        {
+          migrate,
+          name: 'test-storage',
+          skipHydration: true,
+          storage: {
+            getItem: () => ({ state: { count: 1 }, version: 1 }),
+            removeItem,
+            setItem: () => {},
+          },
+          version: 2,
+        },
+      ),
+    )
+
+    const hydration = store.persist.rehydrate()
+    expect(migrate).toHaveBeenCalledWith({ count: 1 }, 1)
+    store.persist.clearStorage()
+    migratedValue.resolve({ count: 2 })
+    await hydration
+
+    expect(removeItem).toHaveBeenCalledTimes(1)
+    expect(store.getState().count).toBe(2)
+  })
+
+  it('does not reset live state when clearing after hydration', async () => {
+    const removeItem = vi.fn()
+    const store = createStore(
+      persist(
+        () => ({ count: 0 }),
+        {
+          name: 'test-storage',
+          skipHydration: true,
+          storage: {
+            getItem: () => ({ state: { count: 1 }, version: 0 }),
+            removeItem,
+            setItem: () => {},
+          },
+        },
+      ),
+    )
+
+    await store.persist.rehydrate()
+    store.persist.clearStorage()
+
+    expect(removeItem).toHaveBeenCalledTimes(1)
+    expect(store.getState().count).toBe(1)
+  })
+})
