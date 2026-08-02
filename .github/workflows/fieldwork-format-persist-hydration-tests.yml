@@ -1,0 +1,41 @@
+name: Fieldwork format persist hydration tests
+
+on:
+  pull_request:
+    branches:
+      - base/upstream-20260801
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install
+      - name: Format candidate tests exactly
+        shell: bash
+        run: |
+          git fetch origin \
+            refs/heads/fix/persist-clear-storage-hydration-generation:refs/remotes/origin/fix/persist-clear-storage-hydration-generation \
+            refs/heads/fix/persist-storage-replacement-hydration-generation:refs/remotes/origin/fix/persist-storage-replacement-hydration-generation
+          mkdir -p /tmp/fieldwork-format
+          git show origin/fix/persist-clear-storage-hydration-generation:tests/persistClearStorageHydrationGeneration.test.ts > /tmp/fieldwork-format/persistClearStorageHydrationGeneration.test.ts
+          git show origin/fix/persist-storage-replacement-hydration-generation:tests/persistStorageReplacementHydrationGeneration.test.ts > /tmp/fieldwork-format/persistStorageReplacementHydrationGeneration.test.ts
+          pnpm exec prettier --write /tmp/fieldwork-format/*.ts
+          echo 'BEGIN_CLEAR_STORAGE_BASE64'
+          base64 -w0 /tmp/fieldwork-format/persistClearStorageHydrationGeneration.test.ts
+          echo
+          echo 'END_CLEAR_STORAGE_BASE64'
+          echo 'BEGIN_STORAGE_REPLACEMENT_BASE64'
+          base64 -w0 /tmp/fieldwork-format/persistStorageReplacementHydrationGeneration.test.ts
+          echo
+          echo 'END_STORAGE_REPLACEMENT_BASE64'
