@@ -259,7 +259,7 @@ const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
   let stateFromStorage: S | undefined
 
   // rehydrate initial state with existing stored state
-  const hydrate = () => {
+  const hydrate = (throwOnError = false) => {
     if (!storage) return
 
     // On the first invocation of 'hydrate', state will not yet be defined (this is
@@ -340,6 +340,9 @@ const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
           return
         }
         postRehydrationCallback?.(undefined, e)
+        if (throwOnError) {
+          return Promise.reject(e)
+        }
       })
   }
 
@@ -368,7 +371,7 @@ const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
       storage?.removeItem(options.name)
     },
     getOptions: () => options,
-    rehydrate: () => hydrate() as Promise<void>,
+    rehydrate: () => hydrate(true) as Promise<void>,
     hasHydrated: () => hasHydrated,
     onHydrate: (cb) => {
       hydrationListeners.add(cb)
