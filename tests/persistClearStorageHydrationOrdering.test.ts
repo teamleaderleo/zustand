@@ -17,10 +17,13 @@ const deferred = <T>(): Deferred<T> => {
 
 describe('persist clear-storage hydration ordering', () => {
   it('applies a delayed stored value after clearStorage', async () => {
-    const storedValue = deferred<{
-      state: { count: number }
-      version: number
-    } | null>()
+    const storedValue = deferred<
+      | {
+          state: { count: number }
+          version: number
+        }
+      | null
+    >()
     const removeItem = vi.fn()
     const store = createStore(
       persist(
