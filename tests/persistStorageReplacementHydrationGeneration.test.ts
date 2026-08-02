@@ -99,11 +99,14 @@ describe('persist storage replacement hydration generation', () => {
       | null
     >()
     const newGetItem = vi.fn(() => ({ state: { count: 2 }, version: 0 }))
+    const postRehydrationCallback = vi.fn()
+    const finishHydrationListener = vi.fn()
     const store = createStore(
       persist(
         () => ({ count: 0 }),
         {
           name: 'test-storage',
+          onRehydrateStorage: () => postRehydrationCallback,
           skipHydration: true,
           storage: {
             getItem: () => oldValue.promise,
@@ -113,6 +116,7 @@ describe('persist storage replacement hydration generation', () => {
         },
       ),
     )
+    store.persist.onFinishHydration(finishHydrationListener)
 
     const oldHydration = store.persist.rehydrate()
     store.persist.setOptions({
@@ -124,10 +128,23 @@ describe('persist storage replacement hydration generation', () => {
     })
     oldValue.resolve({ state: { count: 1 }, version: 0 })
     await oldHydration
+
     expect(store.getState().count).toBe(0)
+    expect(store.persist.hasHydrated()).toBe(false)
+    expect(postRehydrationCallback).not.toHaveBeenCalled()
+    expect(finishHydrationListener).not.toHaveBeenCalled()
 
     await store.persist.rehydrate()
+
     expect(store.getState().count).toBe(2)
+    expect(store.persist.hasHydrated()).toBe(true)
     expect(newGetItem).toHaveBeenCalledTimes(1)
+    expect(postRehydrationCallback).toHaveBeenCalledOnce()
+    expect(postRehydrationCallback).toHaveBeenCalledWith(
+      { count: 2 },
+      undefined,
+    )
+    expect(finishHydrationListener).toHaveBeenCalledOnce()
+    expect(finishHydrationListener).toHaveBeenCalledWith({ count: 2 })
   })
 })
