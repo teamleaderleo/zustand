@@ -125,12 +125,10 @@ describe('persist storage replacement hydration generation', () => {
     expect(store.getState().count).toBe(2)
     expect(store.persist.hasHydrated()).toBe(true)
     expect(newGetItem).toHaveBeenCalledTimes(1)
-    expect(postRehydrationCallback).toHaveBeenCalledOnce()
-    expect(postRehydrationCallback).toHaveBeenCalledWith(
+    expect(postRehydrationCallback).toHaveBeenCalledExactlyOnceWith(
       { count: 2 },
       undefined,
     )
-    expect(finishHydrationListener).toHaveBeenCalledOnce()
-    expect(finishHydrationListener).toHaveBeenCalledWith({ count: 2 })
+    expect(finishHydrationListener).toHaveBeenCalledExactlyOnceWith({ count: 2 })
   })
 })
