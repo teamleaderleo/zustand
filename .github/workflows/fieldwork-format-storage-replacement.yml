@@ -1,0 +1,29 @@
+name: Fieldwork format storage replacement test
+
+on:
+  pull_request:
+    branches:
+      - fix/persist-storage-replacement-hydration-generation
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Format target file
+        run: pnpm exec prettier tests/persistStorageReplacementHydrationGeneration.test.ts --write
+      - name: Print formatted file
+        run: |
+          echo '---BEGIN-FORMATTED-FILE---'
+          cat tests/persistStorageReplacementHydrationGeneration.test.ts
+          echo '---END-FORMATTED-FILE---'
