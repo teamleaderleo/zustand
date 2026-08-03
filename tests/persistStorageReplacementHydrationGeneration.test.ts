@@ -129,6 +129,8 @@ describe('persist storage replacement hydration generation', () => {
       { count: 2 },
       undefined,
     )
-    expect(finishHydrationListener).toHaveBeenCalledExactlyOnceWith({ count: 2 })
+    expect(finishHydrationListener).toHaveBeenCalledExactlyOnceWith({
+      count: 2,
+    })
   })
 })
