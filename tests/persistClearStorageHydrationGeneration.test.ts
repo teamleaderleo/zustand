@@ -129,15 +129,18 @@ describe('persist clear-storage hydration generation', () => {
     expect(store.getState().count).toBe(1)
   })
 
-  it('allows a later hydration after clearing an older one', async () => {
+  it('suppresses stale completion signals and allows a later hydration', async () => {
     const olderValue = deferred<{
       state: { count: number }
       version: number
     } | null>()
+    const postRehydrationCallback = vi.fn()
+    const finishHydrationListener = vi.fn()
     let readCount = 0
     const store = createStore(
       persist(() => ({ count: 0 }), {
         name: 'test-storage',
+        onRehydrateStorage: () => postRehydrationCallback,
         skipHydration: true,
         storage: {
           getItem: () => {
@@ -151,14 +154,26 @@ describe('persist clear-storage hydration generation', () => {
         },
       }),
     )
+    store.persist.onFinishHydration(finishHydrationListener)
 
     const olderHydration = store.persist.rehydrate()
     store.persist.clearStorage()
     olderValue.resolve({ state: { count: 1 }, version: 0 })
     await olderHydration
+
     expect(store.getState().count).toBe(0)
+    expect(store.persist.hasHydrated()).toBe(false)
+    expect(postRehydrationCallback).not.toHaveBeenCalled()
+    expect(finishHydrationListener).not.toHaveBeenCalled()
 
     await store.persist.rehydrate()
+
     expect(store.getState().count).toBe(2)
+    expect(store.persist.hasHydrated()).toBe(true)
+    expect(postRehydrationCallback).toHaveBeenCalledExactlyOnceWith(
+      { count: 2 },
+      undefined,
+    )
+    expect(finishHydrationListener).toHaveBeenCalledExactlyOnceWith({ count: 2 })
   })
 })
