@@ -6,7 +6,7 @@ on:
       - base/upstream-20260801
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   format:
@@ -21,21 +21,36 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install
-      - name: Format candidate tests exactly
+      - name: Apply exact formatting to candidate branches
         shell: bash
         run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git fetch origin \
             refs/heads/fix/persist-clear-storage-hydration-generation:refs/remotes/origin/fix/persist-clear-storage-hydration-generation \
             refs/heads/fix/persist-storage-replacement-hydration-generation:refs/remotes/origin/fix/persist-storage-replacement-hydration-generation
-          mkdir -p /tmp/fieldwork-format
-          git show origin/fix/persist-clear-storage-hydration-generation:tests/persistClearStorageHydrationGeneration.test.ts > /tmp/fieldwork-format/persistClearStorageHydrationGeneration.test.ts
-          git show origin/fix/persist-storage-replacement-hydration-generation:tests/persistStorageReplacementHydrationGeneration.test.ts > /tmp/fieldwork-format/persistStorageReplacementHydrationGeneration.test.ts
-          pnpm exec prettier --write /tmp/fieldwork-format/*.ts
-          echo 'BEGIN_CLEAR_STORAGE_BASE64'
-          base64 -w0 /tmp/fieldwork-format/persistClearStorageHydrationGeneration.test.ts
-          echo
-          echo 'END_CLEAR_STORAGE_BASE64'
-          echo 'BEGIN_STORAGE_REPLACEMENT_BASE64'
-          base64 -w0 /tmp/fieldwork-format/persistStorageReplacementHydrationGeneration.test.ts
-          echo
-          echo 'END_STORAGE_REPLACEMENT_BASE64'
+
+          format_branch() {
+            branch="$1"
+            file="$2"
+            message="$3"
+            git checkout -B "$branch" "origin/$branch"
+            pnpm exec prettier --write "$file"
+            if git diff --quiet -- "$file"; then
+              echo "$branch already formatted"
+              return
+            fi
+            git add "$file"
+            git commit -m "$message"
+            git push origin "HEAD:$branch"
+          }
+
+          format_branch \
+            fix/persist-clear-storage-hydration-generation \
+            tests/persistClearStorageHydrationGeneration.test.ts \
+            'test: format clear-storage hydration regression'
+          format_branch \
+            fix/persist-storage-replacement-hydration-generation \
+            tests/persistStorageReplacementHydrationGeneration.test.ts \
+            'test: format storage-replacement hydration regression'
