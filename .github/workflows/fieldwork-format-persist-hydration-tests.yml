@@ -1,4 +1,4 @@
-name: Fieldwork format persist hydration tests
+name: Fieldwork persist hydration candidate gate
 
 on:
   pull_request:
@@ -6,86 +6,65 @@ on:
       - base/upstream-20260801
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: fieldwork-format-persist-hydration-tests
+  group: fieldwork-persist-hydration-candidate-gate
   cancel-in-progress: true
 
-env:
-  CLEAR_BRANCH: fix/persist-clear-storage-hydration-generation
-  CLEAR_HEAD: 4f9d0aa5e8adaa77a7074b746f0055d0ede05760
-  REPLACEMENT_BRANCH: fix/persist-storage-replacement-hydration-generation
-  REPLACEMENT_HEAD: 0412d59cfe16c6f558cba122313e962e28ecac34
-
 jobs:
-  format:
+  candidate:
     if: >-
       github.repository == 'teamleaderleo/zustand' &&
       github.head_ref == 'execution/format-persist-hydration-tests'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: clear-storage
+            head: 001900bb01102417c016afa3341e384f53474492
+            test_file: tests/persistClearStorageHydrationGeneration.test.ts
+          - name: storage-replacement
+            head: 9b492ea5bc69a0de3a1c09be6bf6a182e7b8c59f
+            test_file: tests/persistStorageReplacementHydrationGeneration.test.ts
+    name: candidate (${{ matrix.name }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Check out exact candidate head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          ref: ${{ matrix.head }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: lts/*
           cache: pnpm
-      - name: Install dependencies
-        run: pnpm install
-      - name: Format and publish exact candidate tests
+      - name: Verify exact source and two-file fence
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name fieldwork-repair-bot
-          git config user.email fieldwork-repair-bot@users.noreply.github.com
-          git fetch origin \
-            "refs/heads/$CLEAR_BRANCH:refs/remotes/origin/$CLEAR_BRANCH" \
-            "refs/heads/$REPLACEMENT_BRANCH:refs/remotes/origin/$REPLACEMENT_BRANCH"
-
-          test "$(git rev-parse "origin/$CLEAR_BRANCH")" = "$CLEAR_HEAD"
-          test "$(git rev-parse "origin/$REPLACEMENT_BRANCH")" = "$REPLACEMENT_HEAD"
-
-          format_branch() {
-            branch="$1"
-            expected_head="$2"
-            file="$3"
-            message="$4"
-
-            git checkout -B "$branch" "$expected_head"
-            test "$(git rev-parse HEAD)" = "$expected_head"
-            test -z "$(git status --porcelain)"
-
-            pnpm exec prettier --write "$file"
-            pnpm exec prettier --check "$file"
-            git diff --check
-
-            if git diff --quiet -- "$file"; then
-              echo "$branch already formatted"
-              return
-            fi
-
-            test "$(git diff --name-only)" = "$file"
-            git add "$file"
-            test "$(git diff --cached --name-only)" = "$file"
-            git commit -m "$message"
-
-            git fetch origin "$branch"
-            test "$(git rev-parse FETCH_HEAD)" = "$expected_head"
-            git push origin "HEAD:$branch"
-          }
-
-          format_branch \
-            "$CLEAR_BRANCH" \
-            "$CLEAR_HEAD" \
-            tests/persistClearStorageHydrationGeneration.test.ts \
-            'test: format clear-storage hydration regression'
-
-          format_branch \
-            "$REPLACEMENT_BRANCH" \
-            "$REPLACEMENT_HEAD" \
-            tests/persistStorageReplacementHydrationGeneration.test.ts \
-            'test: format storage-replacement hydration regression'
+          test "$(git rev-parse HEAD)" = "${{ matrix.head }}"
+          test "$(git diff --name-only beca84e600e4e250f6b244d22878e72948f331c7..HEAD | sort)" = $'src/middleware/persist.ts\n${{ matrix.test_file }}'
+          git diff --check beca84e600e4e250f6b244d22878e72948f331c7..HEAD
+          test -z "$(git status --porcelain)"
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run repository format gate
+        run: pnpm run test:format
+      - name: Run repository type gate
+        run: pnpm run test:types
+      - name: Run repository lint gate
+        run: pnpm run test:lint
+      - name: Run repository spec gate
+        run: pnpm run test:spec
+      - name: Verify candidate identity and clean tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ matrix.head }}"
+          git diff --check
+          test -z "$(git status --porcelain)"
+          echo "FIELDWORK_ZUSTAND_CANDIDATE=${{ matrix.name }}@$(git rev-parse HEAD)"
