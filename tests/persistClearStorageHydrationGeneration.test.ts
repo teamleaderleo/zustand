@@ -17,27 +17,21 @@ const deferred = <T>(): Deferred<T> => {
 
 describe('persist clear-storage hydration generation', () => {
   it('keeps a cleared delayed stored value from hydrating state', async () => {
-    const storedValue = deferred<
-      | {
-          state: { count: number }
-          version: number
-        }
-      | null
-    >()
+    const storedValue = deferred<{
+      state: { count: number }
+      version: number
+    } | null>()
     const removeItem = vi.fn()
     const store = createStore(
-      persist(
-        () => ({ count: 0 }),
-        {
-          name: 'test-storage',
-          skipHydration: true,
-          storage: {
-            getItem: () => storedValue.promise,
-            removeItem,
-            setItem: () => {},
-          },
+      persist(() => ({ count: 0 }), {
+        name: 'test-storage',
+        skipHydration: true,
+        storage: {
+          getItem: () => storedValue.promise,
+          removeItem,
+          setItem: () => {},
         },
-      ),
+      }),
     )
 
     const hydration = store.persist.rehydrate()
@@ -54,20 +48,17 @@ describe('persist clear-storage hydration generation', () => {
     const migrate = vi.fn(() => migratedValue.promise)
     const removeItem = vi.fn()
     const store = createStore(
-      persist(
-        () => ({ count: 0 }),
-        {
-          migrate,
-          name: 'test-storage',
-          skipHydration: true,
-          storage: {
-            getItem: () => ({ state: { count: 1 }, version: 1 }),
-            removeItem,
-            setItem: () => {},
-          },
-          version: 2,
+      persist(() => ({ count: 0 }), {
+        migrate,
+        name: 'test-storage',
+        skipHydration: true,
+        storage: {
+          getItem: () => ({ state: { count: 1 }, version: 1 }),
+          removeItem,
+          setItem: () => {},
         },
-      ),
+        version: 2,
+      }),
     )
 
     const hydration = store.persist.rehydrate()
@@ -83,18 +74,15 @@ describe('persist clear-storage hydration generation', () => {
   it('does not reset live state when clearing after hydration', async () => {
     const removeItem = vi.fn()
     const store = createStore(
-      persist(
-        () => ({ count: 0 }),
-        {
-          name: 'test-storage',
-          skipHydration: true,
-          storage: {
-            getItem: () => ({ state: { count: 1 }, version: 0 }),
-            removeItem,
-            setItem: () => {},
-          },
+      persist(() => ({ count: 0 }), {
+        name: 'test-storage',
+        skipHydration: true,
+        storage: {
+          getItem: () => ({ state: { count: 1 }, version: 0 }),
+          removeItem,
+          setItem: () => {},
         },
-      ),
+      }),
     )
 
     await store.persist.rehydrate()
@@ -105,32 +93,26 @@ describe('persist clear-storage hydration generation', () => {
   })
 
   it('allows a later hydration after clearing an older one', async () => {
-    const olderValue = deferred<
-      | {
-          state: { count: number }
-          version: number
-        }
-      | null
-    >()
+    const olderValue = deferred<{
+      state: { count: number }
+      version: number
+    } | null>()
     let readCount = 0
     const store = createStore(
-      persist(
-        () => ({ count: 0 }),
-        {
-          name: 'test-storage',
-          skipHydration: true,
-          storage: {
-            getItem: () => {
-              readCount += 1
-              return readCount === 1
-                ? olderValue.promise
-                : { state: { count: 2 }, version: 0 }
-            },
-            removeItem: () => {},
-            setItem: () => {},
+      persist(() => ({ count: 0 }), {
+        name: 'test-storage',
+        skipHydration: true,
+        storage: {
+          getItem: () => {
+            readCount += 1
+            return readCount === 1
+              ? olderValue.promise
+              : { state: { count: 2 }, version: 0 }
           },
+          removeItem: () => {},
+          setItem: () => {},
         },
-      ),
+      }),
     )
 
     const olderHydration = store.persist.rehydrate()
