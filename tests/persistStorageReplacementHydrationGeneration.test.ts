@@ -1,30 +1,30 @@
-import { describe, expect, it, vi } from 'vitest'
-import { persist } from 'zustand/middleware'
-import { createStore } from 'zustand/vanilla'
+import { describe, expect, it, vi } from "vitest";
+import { persist } from "zustand/middleware";
+import { createStore } from "zustand/vanilla";
 
 type Deferred<T> = {
-  promise: Promise<T>
-  resolve: (value: T) => void
-}
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+};
 
 const deferred = <T>(): Deferred<T> => {
-  let resolve!: (value: T) => void
+  let resolve!: (value: T) => void;
   const promise = new Promise<T>((resolvePromise) => {
-    resolve = resolvePromise
-  })
-  return { promise, resolve }
-}
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+};
 
-describe('persist storage replacement hydration generation', () => {
-  it('keeps an old-storage read from hydrating after replacement', async () => {
+describe("persist storage replacement hydration generation", () => {
+  it("keeps an old-storage read from hydrating after replacement", async () => {
     const oldValue = deferred<{
-      state: { count: number }
-      version: number
-    } | null>()
-    const newGetItem = vi.fn(() => ({ state: { count: 2 }, version: 0 }))
+      state: { count: number };
+      version: number;
+    } | null>();
+    const newGetItem = vi.fn(() => ({ state: { count: 2 }, version: 0 }));
     const store = createStore(
       persist(() => ({ count: 0 }), {
-        name: 'test-storage',
+        name: "test-storage",
         skipHydration: true,
         storage: {
           getItem: () => oldValue.promise,
@@ -32,30 +32,30 @@ describe('persist storage replacement hydration generation', () => {
           setItem: () => {},
         },
       }),
-    )
+    );
 
-    const hydration = store.persist.rehydrate()
+    const hydration = store.persist.rehydrate();
     store.persist.setOptions({
       storage: {
         getItem: newGetItem,
         removeItem: () => {},
         setItem: () => {},
       },
-    })
-    oldValue.resolve({ state: { count: 1 }, version: 0 })
-    await hydration
+    });
+    oldValue.resolve({ state: { count: 1 }, version: 0 });
+    await hydration;
 
-    expect(store.getState().count).toBe(0)
-    expect(newGetItem).not.toHaveBeenCalled()
-  })
+    expect(store.getState().count).toBe(0);
+    expect(newGetItem).not.toHaveBeenCalled();
+  });
 
-  it('keeps an old-storage migration out of replacement storage', async () => {
-    const migratedValue = deferred<{ count: number }>()
-    const replacementSetItem = vi.fn()
+  it("keeps an old-storage migration out of replacement storage", async () => {
+    const migratedValue = deferred<{ count: number }>();
+    const replacementSetItem = vi.fn();
     const store = createStore(
       persist(() => ({ count: 0 }), {
         migrate: () => migratedValue.promise,
-        name: 'test-storage',
+        name: "test-storage",
         skipHydration: true,
         storage: {
           getItem: () => ({ state: { count: 1 }, version: 1 }),
@@ -64,34 +64,34 @@ describe('persist storage replacement hydration generation', () => {
         },
         version: 2,
       }),
-    )
+    );
 
-    const hydration = store.persist.rehydrate()
+    const hydration = store.persist.rehydrate();
     store.persist.setOptions({
       storage: {
         getItem: () => ({ state: { count: 3 }, version: 2 }),
         removeItem: () => {},
         setItem: replacementSetItem,
       },
-    })
-    migratedValue.resolve({ count: 2 })
-    await hydration
+    });
+    migratedValue.resolve({ count: 2 });
+    await hydration;
 
-    expect(store.getState().count).toBe(0)
-    expect(replacementSetItem).not.toHaveBeenCalled()
-  })
+    expect(store.getState().count).toBe(0);
+    expect(replacementSetItem).not.toHaveBeenCalled();
+  });
 
-  it('uses the replacement storage for a later hydration', async () => {
+  it("uses the replacement storage for a later hydration", async () => {
     const oldValue = deferred<{
-      state: { count: number }
-      version: number
-    } | null>()
-    const newGetItem = vi.fn(() => ({ state: { count: 2 }, version: 0 }))
-    const postRehydrationCallback = vi.fn()
-    const finishHydrationListener = vi.fn()
+      state: { count: number };
+      version: number;
+    } | null>();
+    const newGetItem = vi.fn(() => ({ state: { count: 2 }, version: 0 }));
+    const postRehydrationCallback = vi.fn();
+    const finishHydrationListener = vi.fn();
     const store = createStore(
       persist(() => ({ count: 0 }), {
-        name: 'test-storage',
+        name: "test-storage",
         onRehydrateStorage: () => postRehydrationCallback,
         skipHydration: true,
         storage: {
@@ -100,10 +100,10 @@ describe('persist storage replacement hydration generation', () => {
           setItem: () => {},
         },
       }),
-    )
-    store.persist.onFinishHydration(finishHydrationListener)
+    );
+    store.persist.onFinishHydration(finishHydrationListener);
 
-    const oldHydration = store.persist.rehydrate()
+    const oldHydration = store.persist.rehydrate();
     // Replacing storage invalidates this generation; it does not start a new one.
     store.persist.setOptions({
       storage: {
@@ -111,26 +111,26 @@ describe('persist storage replacement hydration generation', () => {
         removeItem: () => {},
         setItem: () => {},
       },
-    })
-    oldValue.resolve({ state: { count: 1 }, version: 0 })
-    await oldHydration
+    });
+    oldValue.resolve({ state: { count: 1 }, version: 0 });
+    await oldHydration;
 
-    expect(store.getState().count).toBe(0)
-    expect(store.persist.hasHydrated()).toBe(false)
-    expect(postRehydrationCallback).not.toHaveBeenCalled()
-    expect(finishHydrationListener).not.toHaveBeenCalled()
+    expect(store.getState().count).toBe(0);
+    expect(store.persist.hasHydrated()).toBe(false);
+    expect(postRehydrationCallback).not.toHaveBeenCalled();
+    expect(finishHydrationListener).not.toHaveBeenCalled();
 
-    await store.persist.rehydrate()
+    await store.persist.rehydrate();
 
-    expect(store.getState().count).toBe(2)
-    expect(store.persist.hasHydrated()).toBe(true)
-    expect(newGetItem).toHaveBeenCalledTimes(1)
-    expect(postRehydrationCallback).toHaveBeenCalledOnce()
+    expect(store.getState().count).toBe(2);
+    expect(store.persist.hasHydrated()).toBe(true);
+    expect(newGetItem).toHaveBeenCalledTimes(1);
+    expect(postRehydrationCallback).toHaveBeenCalledOnce();
     expect(postRehydrationCallback).toHaveBeenCalledWith(
       { count: 2 },
       undefined,
-    )
-    expect(finishHydrationListener).toHaveBeenCalledOnce()
-    expect(finishHydrationListener).toHaveBeenCalledWith({ count: 2 })
-  })
-})
+    );
+    expect(finishHydrationListener).toHaveBeenCalledOnce();
+    expect(finishHydrationListener).toHaveBeenCalledWith({ count: 2 });
+  });
+});
