@@ -125,17 +125,6 @@ type StorePersist<S, Ps, Pr> = {
   }
 }
 
-type Persist = <
-  T,
-  Mps extends [StoreMutatorIdentifier, unknown][] = [],
-  Mcs extends [StoreMutatorIdentifier, unknown][] = [],
-  U = T,
-  Pr = unknown,
->(
-  initializer: StateCreator<T, [...Mps, ['zustand/persist', unknown]], Mcs>,
-  options: PersistOptions<T, U, Pr>,
-) => StateCreator<T, Mps, [['zustand/persist', U], ...Mcs]>
-
 type PersistImpl = <T, U = T, Pr = unknown>(
   storeInitializer: StateCreator<T, [], []>,
   options: PersistOptions<T, U, Pr>,
