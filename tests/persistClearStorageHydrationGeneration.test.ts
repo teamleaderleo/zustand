@@ -71,6 +71,43 @@ describe("persist clear-storage hydration generation", () => {
     expect(store.getState().count).toBe(0);
   });
 
+  it("revokes the active hydration even when storage removal throws", async () => {
+    const olderValue = deferred<{
+      state: { count: number };
+      version: number;
+    } | null>();
+    const removeError = new Error("remove failed");
+    let readCount = 0;
+    const store = createStore(
+      persist(() => ({ count: 0 }), {
+        name: "test-storage",
+        skipHydration: true,
+        storage: {
+          getItem: () => {
+            readCount += 1;
+            return readCount === 1
+              ? olderValue.promise
+              : { state: { count: 2 }, version: 0 };
+          },
+          removeItem: () => {
+            throw removeError;
+          },
+          setItem: () => {},
+        },
+      }),
+    );
+
+    const olderHydration = store.persist.rehydrate();
+    expect(() => store.persist.clearStorage()).toThrow(removeError);
+    olderValue.resolve({ state: { count: 1 }, version: 0 });
+    await olderHydration;
+
+    expect(store.getState().count).toBe(0);
+
+    await store.persist.rehydrate();
+    expect(store.getState().count).toBe(2);
+  });
+
   it("does not reset live state when clearing after hydration", async () => {
     const removeItem = vi.fn();
     const store = createStore(
