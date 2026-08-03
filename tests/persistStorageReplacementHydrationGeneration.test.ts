@@ -17,27 +17,21 @@ const deferred = <T>(): Deferred<T> => {
 
 describe('persist storage replacement hydration generation', () => {
   it('keeps an old-storage read from hydrating after replacement', async () => {
-    const oldValue = deferred<
-      | {
-          state: { count: number }
-          version: number
-        }
-      | null
-    >()
+    const oldValue = deferred<{
+      state: { count: number }
+      version: number
+    } | null>()
     const newGetItem = vi.fn(() => ({ state: { count: 2 }, version: 0 }))
     const store = createStore(
-      persist(
-        () => ({ count: 0 }),
-        {
-          name: 'test-storage',
-          skipHydration: true,
-          storage: {
-            getItem: () => oldValue.promise,
-            removeItem: () => {},
-            setItem: () => {},
-          },
+      persist(() => ({ count: 0 }), {
+        name: 'test-storage',
+        skipHydration: true,
+        storage: {
+          getItem: () => oldValue.promise,
+          removeItem: () => {},
+          setItem: () => {},
         },
-      ),
+      }),
     )
 
     const hydration = store.persist.rehydrate()
@@ -59,20 +53,17 @@ describe('persist storage replacement hydration generation', () => {
     const migratedValue = deferred<{ count: number }>()
     const replacementSetItem = vi.fn()
     const store = createStore(
-      persist(
-        () => ({ count: 0 }),
-        {
-          migrate: () => migratedValue.promise,
-          name: 'test-storage',
-          skipHydration: true,
-          storage: {
-            getItem: () => ({ state: { count: 1 }, version: 1 }),
-            removeItem: () => {},
-            setItem: () => {},
-          },
-          version: 2,
+      persist(() => ({ count: 0 }), {
+        migrate: () => migratedValue.promise,
+        name: 'test-storage',
+        skipHydration: true,
+        storage: {
+          getItem: () => ({ state: { count: 1 }, version: 1 }),
+          removeItem: () => {},
+          setItem: () => {},
         },
-      ),
+        version: 2,
+      }),
     )
 
     const hydration = store.persist.rehydrate()
@@ -91,30 +82,24 @@ describe('persist storage replacement hydration generation', () => {
   })
 
   it('uses the replacement storage for a later hydration', async () => {
-    const oldValue = deferred<
-      | {
-          state: { count: number }
-          version: number
-        }
-      | null
-    >()
+    const oldValue = deferred<{
+      state: { count: number }
+      version: number
+    } | null>()
     const newGetItem = vi.fn(() => ({ state: { count: 2 }, version: 0 }))
     const postRehydrationCallback = vi.fn()
     const finishHydrationListener = vi.fn()
     const store = createStore(
-      persist(
-        () => ({ count: 0 }),
-        {
-          name: 'test-storage',
-          onRehydrateStorage: () => postRehydrationCallback,
-          skipHydration: true,
-          storage: {
-            getItem: () => oldValue.promise,
-            removeItem: () => {},
-            setItem: () => {},
-          },
+      persist(() => ({ count: 0 }), {
+        name: 'test-storage',
+        onRehydrateStorage: () => postRehydrationCallback,
+        skipHydration: true,
+        storage: {
+          getItem: () => oldValue.promise,
+          removeItem: () => {},
+          setItem: () => {},
         },
-      ),
+      }),
     )
     store.persist.onFinishHydration(finishHydrationListener)
 
