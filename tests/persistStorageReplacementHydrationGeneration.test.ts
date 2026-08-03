@@ -81,6 +81,44 @@ describe('persist storage replacement hydration generation', () => {
     expect(replacementSetItem).not.toHaveBeenCalled()
   })
 
+  it('keeps the active hydration when the same storage is reapplied', async () => {
+    const storedValue = deferred<{
+      state: { count: number }
+      version: number
+    } | null>()
+    const postRehydrationCallback = vi.fn()
+    const finishHydrationListener = vi.fn()
+    const storage = {
+      getItem: () => storedValue.promise,
+      removeItem: () => {},
+      setItem: () => {},
+    }
+    const store = createStore(
+      persist(() => ({ count: 0 }), {
+        name: 'test-storage',
+        onRehydrateStorage: () => postRehydrationCallback,
+        skipHydration: true,
+        storage,
+      }),
+    )
+    store.persist.onFinishHydration(finishHydrationListener)
+
+    const hydration = store.persist.rehydrate()
+    store.persist.setOptions({ storage })
+    storedValue.resolve({ state: { count: 1 }, version: 0 })
+    await hydration
+
+    expect(store.getState().count).toBe(1)
+    expect(store.persist.hasHydrated()).toBe(true)
+    expect(postRehydrationCallback).toHaveBeenCalledExactlyOnceWith(
+      { count: 1 },
+      undefined,
+    )
+    expect(finishHydrationListener).toHaveBeenCalledExactlyOnceWith({
+      count: 1,
+    })
+  })
+
   it('uses the replacement storage for a later hydration', async () => {
     const oldValue = deferred<{
       state: { count: number }
