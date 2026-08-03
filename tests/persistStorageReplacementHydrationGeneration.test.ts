@@ -104,6 +104,7 @@ describe('persist storage replacement hydration generation', () => {
     store.persist.onFinishHydration(finishHydrationListener)
 
     const oldHydration = store.persist.rehydrate()
+    // Replacing storage invalidates this generation; it does not start a new one.
     store.persist.setOptions({
       storage: {
         getItem: newGetItem,
