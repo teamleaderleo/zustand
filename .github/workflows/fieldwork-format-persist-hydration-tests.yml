@@ -25,7 +25,7 @@ jobs:
             head: 001900bb01102417c016afa3341e384f53474492
             test_file: tests/persistClearStorageHydrationGeneration.test.ts
           - name: storage-replacement
-            head: 9b492ea5bc69a0de3a1c09be6bf6a182e7b8c59f
+            head: 665e0399ee5dc3e877f4cbd431a326eac56f42db
             test_file: tests/persistStorageReplacementHydrationGeneration.test.ts
     name: candidate (${{ matrix.name }})
     runs-on: ubuntu-24.04
