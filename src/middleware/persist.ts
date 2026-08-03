@@ -1,13 +1,9 @@
-import type {
-  StateCreator,
-  StoreApi,
-  StoreMutatorIdentifier,
-} from '../vanilla.ts'
+import type { StateCreator, StoreMutatorIdentifier } from '../vanilla.ts'
 
-export interface StateStorage<R = unknown> {
+export interface StateStorage {
   getItem: (name: string) => string | null | Promise<string | null>
-  setItem: (name: string, value: string) => R
-  removeItem: (name: string) => R
+  setItem: (name: string, value: string) => unknown | Promise<unknown>
+  removeItem: (name: string) => unknown | Promise<unknown>
 }
 
 export type StorageValue<S> = {
@@ -16,9 +12,7 @@ export type StorageValue<S> = {
 }
 
 export interface PersistStorage<S, R = unknown> {
-  getItem: (
-    name: string,
-  ) => StorageValue<S> | null | Promise<StorageValue<S> | null>
+  getItem: (name: string) => StorageValue<S> | null | Promise<StorageValue<S> | null>
   setItem: (name: string, value: StorageValue<S>) => R
   removeItem: (name: string) => R
 }
@@ -28,18 +22,18 @@ type JsonStorageOptions = {
   replacer?: (key: string, value: unknown) => unknown
 }
 
-export function createJSONStorage<S, R = unknown>(
-  getStorage: () => StateStorage<R>,
+export function createJSONStorage<S>(
+  getStorage: () => StateStorage,
   options?: JsonStorageOptions,
-): PersistStorage<S, unknown> | undefined {
-  let storage: StateStorage<R> | undefined
+): PersistStorage<S> | undefined {
+  let storage: StateStorage | undefined
   try {
     storage = getStorage()
   } catch {
     // prevent error if the storage is not defined (e.g. when server side rendering a page)
     return
   }
-  const persistStorage: PersistStorage<S, R> = {
+  const persistStorage: PersistStorage<S> = {
     getItem: (name) => {
       const parse = (str: string | null) => {
         if (str === null) {
@@ -47,24 +41,23 @@ export function createJSONStorage<S, R = unknown>(
         }
         return JSON.parse(str, options?.reviver) as StorageValue<S>
       }
-      const str = storage.getItem(name) ?? null
+      const str = (storage as StateStorage).getItem(name) ?? null
       if (str instanceof Promise) {
         return str.then(parse)
       }
       return parse(str)
     },
     setItem: (name, newValue) =>
-      storage.setItem(name, JSON.stringify(newValue, options?.replacer)),
-    removeItem: (name) => storage.removeItem(name),
+      (storage as StateStorage).setItem(
+        name,
+        JSON.stringify(newValue, options?.replacer),
+      ),
+    removeItem: (name) => (storage as StateStorage).removeItem(name),
   }
   return persistStorage
 }
 
-export interface PersistOptions<
-  S,
-  PersistedState = S,
-  PersistReturn = unknown,
-> {
+export interface PersistOptions<S, PersistedState = S, PersistReturn = unknown> {
   /** Name of the storage (must be unique) */
   name: string
   /**
@@ -73,7 +66,7 @@ export interface PersistOptions<
    * Combining `createJSONStorage` helps creating a persist storage
    * with JSON.parse and JSON.stringify.
    *
-   * @default createJSONStorage(() => window.localStorage)
+   * @default createJSONStorage(() => localStorage)
    */
   storage?: PersistStorage<PersistedState, PersistReturn> | undefined
   /**
@@ -84,7 +77,9 @@ export interface PersistOptions<
   partialize?: (state: S) => PersistedState
   /**
    * A function returning another (optional) function.
+   *
    * The main function will be called before the state rehydration.
+   *
    * The returned function will be called after the state rehydration or when an error occurred.
    */
   onRehydrateStorage?: (
@@ -92,23 +87,19 @@ export interface PersistOptions<
   ) => ((state?: S, error?: unknown) => void) | void
   /**
    * If the stored state's version mismatch the one specified here, the storage will not be used.
-   * This is useful when adding a breaking change to your store.
+   * You can use the `migrate` function to handle breaking changes in order to persist previously stored data.
    */
   version?: number
   /**
    * A function to perform persisted state migration.
    * This function will be called when persisted state versions mismatch with the one specified here.
    */
-  migrate?: (
-    persistedState: unknown,
-    version: number,
-  ) => PersistedState | Promise<PersistedState>
+  migrate?: (persistedState: unknown, version: number) => PersistedState | Promise<PersistedState>
   /**
    * A function to perform custom hydration merges when combining the stored state with the current one.
    * By default, this function does a shallow merge.
    */
   merge?: (persistedState: unknown, currentState: S) => S
-
   /**
    * An optional boolean that will prevent the persist middleware from triggering hydration on initialization,
    * This allows you to call `rehydrate()` at a specific point in your apps rendering life-cycle.
@@ -122,72 +113,38 @@ export interface PersistOptions<
 
 type PersistListener<S> = (state: S) => void
 
-type StorePersist<S, Ps, Pr> = S extends {
-  getState: () => infer T
-  setState: {
-    // capture both overloads of setState
-    (...args: infer Sa1): infer Sr1
-    (...args: infer Sa2): infer Sr2
+type StorePersist<S, Ps, Pr> = {
+  persist: {
+    setOptions: (options: Partial<PersistOptions<S, Ps, Pr>>) => void
+    clearStorage: () => void
+    rehydrate: () => Promise<void> | void
+    hasHydrated: () => boolean
+    onHydrate: (fn: PersistListener<S>) => () => void
+    onFinishHydration: (fn: PersistListener<S>) => () => void
+    getOptions: () => Partial<PersistOptions<S, Ps, Pr>>
   }
 }
-  ? {
-      setState(...args: Sa1): Sr1 | Pr
-      setState(...args: Sa2): Sr2 | Pr
-      persist: {
-        setOptions: (options: Partial<PersistOptions<T, Ps, Pr>>) => void
-        clearStorage: () => void
-        rehydrate: () => Promise<void> | void
-        hasHydrated: () => boolean
-        onHydrate: (fn: PersistListener<T>) => () => void
-        onFinishHydration: (fn: PersistListener<T>) => () => void
-        getOptions: () => Partial<PersistOptions<T, Ps, Pr>>
-      }
-    }
-  : never
 
-type Thenable<Value> = {
-  then<V>(
-    onFulfilled: (value: Value) => V | Promise<V> | Thenable<V>,
-  ): Thenable<V>
-  catch<V>(
-    onRejected: (reason: Error) => V | Promise<V> | Thenable<V>,
-  ): Thenable<V>
-}
+type Persist = <
+  T,
+  Mps extends [StoreMutatorIdentifier, unknown][] = [],
+  Mcs extends [StoreMutatorIdentifier, unknown][] = [],
+  U = T,
+  Pr = unknown,
+>(
+  initializer: StateCreator<T, [...Mps, ['zustand/persist', unknown]], Mcs>,
+  options: PersistOptions<T, U, Pr>,
+) => StateCreator<T, Mps, [['zustand/persist', U], ...Mcs]>
 
-const toThenable =
-  <Result, Input>(
-    fn: (input: Input) => Result | Promise<Result> | Thenable<Result>,
-  ) =>
-  (input: Input): Thenable<Result> => {
-    try {
-      const result = fn(input)
-      if (result instanceof Promise) {
-        return result as Thenable<Result>
-      }
-      return {
-        then(onFulfilled) {
-          return toThenable(onFulfilled)(result as Result)
-        },
-        catch(_onRejected) {
-          return this as Thenable<any>
-        },
-      }
-    } catch (e: any) {
-      return {
-        then(_onFulfilled) {
-          return this as Thenable<any>
-        },
-        catch(onRejected) {
-          return toThenable(onRejected)(e)
-        },
-      }
-    }
-  }
+type PersistImpl = <T, U = T, Pr = unknown>(
+  storeInitializer: StateCreator<T, [], []>,
+  options: PersistOptions<T, U, Pr>,
+) => StateCreator<T, [], []>
 
-const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
+export const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
   type S = ReturnType<typeof config>
   let options = {
-    storage: createJSONStorage<S, void>(() => window.localStorage),
+    storage: createJSONStorage<S>(() => localStorage),
     partialize: (state: S) => state,
     version: 0,
     merge: (persistedState: unknown, currentState: S) => ({
@@ -198,12 +155,10 @@ const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
   }
 
   let hasHydrated = false
-  // Counter to track hydration versions and prevent race conditions
-  // when multiple rehydrate() calls happen concurrently
-  let hydrationVersion = 0
   const hydrationListeners = new Set<PersistListener<S>>()
   const finishHydrationListeners = new Set<PersistListener<S>>()
   let storage = options.storage
+  let hydrationVersion = 0
 
   if (!storage) {
     return config(
@@ -220,7 +175,7 @@ const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
 
   const setItem = () => {
     const state = options.partialize({ ...get() })
-    return (storage as PersistStorage<S, unknown>).setItem(options.name, {
+    return (storage as PersistStorage<S>).setItem(options.name, {
       state,
       version: options.version,
     })
@@ -230,13 +185,13 @@ const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
 
   api.setState = (state, replace) => {
     savedSetState(state, replace as any)
-    return setItem()
+    void setItem()
   }
 
   const configResult = config(
     (...args) => {
       set(...(args as Parameters<typeof set>))
-      return setItem()
+      void setItem()
     },
     get,
     api,
@@ -249,17 +204,12 @@ const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
   // to avoid this, we merge the state from localStorage into the initial state.
   let stateFromStorage: S | undefined
 
-  // rehydrate initial state with existing stored state
+  // to avoid race conditions with asynchronous hydration, hydrationVersion is incremented for each new hydration.
+  // Only the latest hydration attempt is allowed to update state or call completion callbacks.
   const hydrate = () => {
+    const currentVersion = ++hydrationVersion
     if (!storage) return
 
-    // On the first invocation of 'hydrate', state will not yet be defined (this is
-    // true for both the 'asynchronous' and 'synchronous' case). Pass 'configResult'
-    // as a backup  to 'get()' so listeners and 'onRehydrateStorage' are called with
-    // the latest available state.
-
-    // Increment version to invalidate any in-flight hydration
-    const currentVersion = ++hydrationVersion
     hasHydrated = false
     hydrationListeners.forEach((cb) => cb(get() ?? configResult))
 
@@ -269,6 +219,10 @@ const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
     // bind is used to avoid `TypeError: Illegal invocation` error
     return toThenable(storage.getItem.bind(storage))(options.name)
       .then((deserializedStorageValue) => {
+        // Abort if a newer hydration has started
+        if (currentVersion !== hydrationVersion) {
+          return
+        }
         if (deserializedStorageValue) {
           if (
             typeof deserializedStorageValue.version === 'number' &&
@@ -341,7 +295,7 @@ const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
         ...newOptions,
       }
 
-      if (newOptions.storage) {
+      if (newOptions.storage && newOptions.storage !== storage) {
         hydrationVersion += 1
         storage = newOptions.storage
       }
@@ -380,24 +334,10 @@ type Persist = <
   Mps extends [StoreMutatorIdentifier, unknown][] = [],
   Mcs extends [StoreMutatorIdentifier, unknown][] = [],
   U = T,
+  Pr = unknown,
 >(
   initializer: StateCreator<T, [...Mps, ['zustand/persist', unknown]], Mcs>,
-  options: PersistOptions<T, U>,
+  options: PersistOptions<T, U, Pr>,
 ) => StateCreator<T, Mps, [['zustand/persist', U], ...Mcs]>
-
-declare module '../vanilla' {
-  interface StoreMutators<S, A> {
-    'zustand/persist': WithPersist<S, A>
-  }
-}
-
-type Write<T, U> = Omit<T, keyof U> & U
-
-type WithPersist<S, A> = Write<S, StorePersist<S, A, unknown>>
-
-type PersistImpl = <T>(
-  storeInitializer: StateCreator<T, [], []>,
-  options: PersistOptions<T, T>,
-) => StateCreator<T, [], []>
 
 export const persist = persistImpl as unknown as Persist
