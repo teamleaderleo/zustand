@@ -341,7 +341,7 @@ const persistImpl: PersistImpl = (config, baseOptions) => (set, get, api) => {
         ...newOptions,
       }
 
-      if (newOptions.storage) {
+      if (newOptions.storage && newOptions.storage !== storage) {
         hydrationVersion += 1
         storage = newOptions.storage
       }
